@@ -254,16 +254,16 @@ func newVehiclesCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			type vehicleRow struct {
-				VehicleID string  `json:"vehicle_id"`
-				RouteID   string  `json:"route_id"`
-				RouteName string  `json:"route_short_name"`
-				TripID    string  `json:"trip_id"`
-				Lat       float32 `json:"lat"`
-				Lon       float32 `json:"lon"`
-				Bearing   float32 `json:"bearing"`
-				NextStop  string  `json:"next_stop"`
-				DelayMin  *int    `json:"delay_min,omitempty"`
-				Updated   string  `json:"updated_at"`
+				VehicleID string   `json:"vehicle_id"`
+				RouteID   string   `json:"route_id"`
+				RouteName string   `json:"route_short_name"`
+				TripID    string   `json:"trip_id"`
+				Lat       float32  `json:"lat"`
+				Lon       float32  `json:"lon"`
+				Bearing   *float32 `json:"bearing"` // null when the feed doesn't report it
+				NextStop  string   `json:"next_stop"`
+				DelayMin  *int     `json:"delay_min,omitempty"`
+				Updated   string   `json:"updated_at"`
 			}
 
 			var rows []vehicleRow
@@ -286,8 +286,11 @@ func newVehiclesCmd(flags *rootFlags) *cobra.Command {
 					TripID:    tripID,
 					Lat:       pos.GetLatitude(),
 					Lon:       pos.GetLongitude(),
-					Bearing:   pos.GetBearing(),
 					NextStop:  vp.GetStopId(),
+				}
+				if pos != nil && pos.Bearing != nil {
+					b := *pos.Bearing
+					row.Bearing = &b
 				}
 				if vp.GetTimestamp() > 0 {
 					row.Updated = time.Unix(int64(vp.GetTimestamp()), 0).In(a.loc).Format("15:04:05")
@@ -328,9 +331,13 @@ func newVehiclesCmd(flags *rootFlags) *cobra.Command {
 				if r.DelayMin != nil {
 					delay = fmt.Sprintf("%+d", *r.DelayMin)
 				}
+				bearing := "—"
+				if r.Bearing != nil {
+					bearing = fmt.Sprintf("%.0f", *r.Bearing)
+				}
 				tableRows = append(tableRows, []string{
 					r.VehicleID, r.RouteName, fmtFloat(float64(r.Lat)), fmtFloat(float64(r.Lon)),
-					fmt.Sprintf("%.0f", r.Bearing), r.NextStop, delay, r.Updated,
+					bearing, r.NextStop, delay, r.Updated,
 				})
 			}
 			return output.Table(out, []string{"vehicle", "line", "lat", "lon", "bearing", "next_stop", "delay_min", "updated"}, tableRows)

@@ -346,15 +346,15 @@ func runVehiclesForMCP(ctx context.Context, routeShort string) (any, error) {
 		return nil, err
 	}
 	type vehicleRow struct {
-		VehicleID string  `json:"vehicle_id"`
-		RouteID   string  `json:"route_id"`
-		RouteName string  `json:"route_short_name"`
-		TripID    string  `json:"trip_id"`
-		Lat       float32 `json:"lat"`
-		Lon       float32 `json:"lon"`
-		Bearing   float32 `json:"bearing"`
-		NextStop  string  `json:"next_stop"`
-		Updated   string  `json:"updated_at"`
+		VehicleID string   `json:"vehicle_id"`
+		RouteID   string   `json:"route_id"`
+		RouteName string   `json:"route_short_name"`
+		TripID    string   `json:"trip_id"`
+		Lat       float32  `json:"lat"`
+		Lon       float32  `json:"lon"`
+		Bearing   *float32 `json:"bearing"` // null when the feed doesn't report it
+		NextStop  string   `json:"next_stop"`
+		Updated   string   `json:"updated_at"`
 	}
 	var rows []vehicleRow
 	for _, ent := range msg.GetEntity() {
@@ -375,8 +375,11 @@ func runVehiclesForMCP(ctx context.Context, routeShort string) (any, error) {
 			TripID:    vp.GetTrip().GetTripId(),
 			Lat:       pos.GetLatitude(),
 			Lon:       pos.GetLongitude(),
-			Bearing:   pos.GetBearing(),
 			NextStop:  vp.GetStopId(),
+		}
+		if pos != nil && pos.Bearing != nil {
+			b := *pos.Bearing
+			r.Bearing = &b
 		}
 		if vp.GetTimestamp() > 0 {
 			r.Updated = time.Unix(int64(vp.GetTimestamp()), 0).In(a.loc).Format(time.RFC3339)
