@@ -6,6 +6,11 @@
 # Local caches
 /.cache/
 
+# Per-user editor / agent config
+/.claude/
+/.idea/
+/.vscode/
+
 # Test/scratch
 /tmp/
 *.test
