@@ -1,0 +1,13 @@
+# Build outputs
+/odino
+/bin/
+/dist/
+
+# Local caches
+/.cache/
+
+# Test/scratch
+/tmp/
+*.test
+*.prof
+coverage.out

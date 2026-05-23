@@ -1,93 +1,266 @@
 # odino
 
+CLI for Rome public-transport realtime arrivals, backed by the
+[Roma Mobilità open data feeds](https://romamobilita.it/sistemi-e-tecnologie/open-data/)
+(GTFS static + GTFS-Realtime). No API key required.
 
+Each arrival row is tagged `LIVE` (realtime delay applied) or `SCHED`
+(planned only). Ships an MCP server so AI agents can query the same data.
 
-## Getting started
+## Cache directory
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+`odino` keeps its parsed GTFS data (SQLite database, raw ZIP, MD5 sum) in
+a local cache directory:
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- `$ODINO_CACHE_DIR` if set, else
+- `$XDG_CACHE_HOME/odino` if set, else
+- `~/.cache/odino` (default on macOS and Linux).
 
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.rm.ingv.it/valentino.lauciani/odino.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-* [Set up project integrations](https://gitlab.rm.ingv.it/valentino.lauciani/odino/-/settings/integrations)
-
-## Collaborate with your team
-
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+The cache is refreshed lazily once a day. The static GTFS ZIP is re-parsed
+only when its upstream MD5 changes, so daily refreshes are nearly free.
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+
+### From source
+
+```sh
+git clone https://gitlab.rm.ingv.it/valentino.lauciani/odino.git
+cd odino
+go build -o odino ./cmd/odino
+```
+
+### Via `go install`
+
+```sh
+go install gitlab.rm.ingv.it/valentino.lauciani/odino/cmd/odino@latest
+```
+
+This drops the `odino` binary in `$(go env GOPATH)/bin` (usually `~/go/bin`).
+
+### Docker
+
+```sh
+docker build -t odino:latest .
+```
+
+Multi-stage Alpine image, ~15 MB. Inside the container the cache path is
+`/var/cache/odino`; bind-mount your host `~/.cache/odino` there to persist
+the SQLite database across runs:
+
+```sh
+mkdir -p ~/.cache/odino
+docker run --rm --user $(id -u):$(id -g) \
+  -v ~/.cache/odino:/var/cache/odino \
+  odino:latest update
+```
+
+The `--user $(id -u):$(id -g)` flag matches the container process to your
+host UID/GID, so files in `~/.cache/odino` end up owned by you (not root,
+not the container's `odino` user). On macOS Docker Desktop you can usually
+omit it; on Linux it is recommended.
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+```
+odino <command> [flags]
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+Commands:
+  update                  Refresh the GTFS static cache.
+  arrivals <stop>         Next arrivals at a stop (live + scheduled).
+  vehicles                Live vehicle positions, optionally filtered by line.
+  alerts                  Active service alerts.
+  stops search <query>    Search stops by name substring.
+  stops nearby --lat --lon --radius [--route]
+                          Stops within a radius (in metres) of a coordinate.
+  routes                  List all routes.
+  mcp                     Run the MCP server over stdio.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Global flags:
+  --json                  Emit JSON instead of a table.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+arrivals flags:
+  --route <name>          Filter by route_short_name (e.g. 64).
+  --limit <n>             Max rows (default 10).
+  --window <minutes>      Look-ahead window (default 60).
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+stops nearby flags:
+  --lat <deg>             Latitude (WGS84, decimal degrees). Required.
+  --lon <deg>             Longitude (WGS84, decimal degrees). Required.
+  --radius <metres>       Search radius in metres. Required.
+  --route <name>          Keep only stops served by this line.
+  --limit <n>             Max rows (default 10).
+```
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+`<stop>` in `arrivals` is auto-detected: numeric → `stop_id`, otherwise a
+case-insensitive substring match on `stop_name`. Times are reported in
+the `Europe/Rome` timezone.
+
+## Examples
+
+### Native binary
+
+```sh
+# First-time setup: populate the cache (~30 MB download).
+odino update
+
+# Find a stop by street name fragment.
+odino stops search Termini
+
+# Stops within 300 m of a coordinate.
+odino stops nearby --lat 41.853563 --lon 12.499133 --radius 300
+
+# Same area, restricted to line 30.
+odino stops nearby --lat 41.853563 --lon 12.499133 --radius 800 --route 30
+
+# Next arrivals at a stop (by stop_id or name substring).
+odino arrivals 79790
+odino arrivals "Vittorio Emanuele/Argentina"
+
+# Filter by line.
+odino arrivals 79790 --route 64
+
+# JSON output (for scripts and agents).
+odino arrivals 79790 --route 64 --json | jq .
+
+# Live position of every line-64 bus.
+odino vehicles --route 64
+
+# Active service alerts.
+odino alerts
+```
+
+### Docker
+
+The host `~/.cache/odino` directory is mounted at `/var/cache/odino`
+inside the container, so the GTFS cache persists across runs.
+
+```sh
+# Populate (or refresh) the cache from inside the container.
+docker run --rm --user $(id -u):$(id -g) \
+  -v ~/.cache/odino:/var/cache/odino \
+  odino:latest update
+
+# Next arrivals at C.so Vittorio Emanuele / Argentina (stop 79790), line 64.
+docker run --rm --user $(id -u):$(id -g) \
+  -v ~/.cache/odino:/var/cache/odino \
+  odino:latest arrivals 79790 --route 64
+
+# Stops within 250 m of a coordinate.
+docker run --rm --user $(id -u):$(id -g) \
+  -v ~/.cache/odino:/var/cache/odino \
+  odino:latest stops nearby --lat 41.853563 --lon 12.499133 --radius 250
+
+# Live vehicle positions for line 64.
+docker run --rm --user $(id -u):$(id -g) \
+  -v ~/.cache/odino:/var/cache/odino \
+  odino:latest vehicles --route 64 --json
+```
+
+Handy shell alias:
+
+```sh
+alias odino='docker run --rm --user $(id -u):$(id -g) \
+  -v ~/.cache/odino:/var/cache/odino odino:latest'
+# Then: odino arrivals 79790 --route 64
+```
+
+## MCP server
+
+`odino mcp` starts a Model Context Protocol server on stdio. Each CLI
+subcommand is exposed as an MCP tool returning JSON.
+
+Available tools: `arrivals`, `vehicles`, `alerts`, `stops_search`,
+`stops_nearby`, `routes`, `update`.
+
+### Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`
+(macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "odino": {
+      "command": "/Users/<you>/go/bin/odino",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving.
+
+### Claude Code
+
+```sh
+claude mcp add odino "$(which odino)" mcp
+```
+
+Or edit `~/.claude/settings.json` (or `.claude/settings.json` in the
+project) by hand:
+
+```json
+{
+  "mcpServers": {
+    "odino": {
+      "command": "/Users/<you>/go/bin/odino",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+### Codex CLI
+
+Edit `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.odino]
+command = "/Users/<you>/go/bin/odino"
+args = ["mcp"]
+```
+
+### MCP via Docker
+
+You can also run the MCP server inside the container — the host's
+`~/.cache/odino` is still mounted, so cache state is shared with the
+native CLI. The agent config invokes Docker with stdio attached
+(`-i`, never `-t`, so the MCP framing isn't corrupted):
+
+```json
+{
+  "mcpServers": {
+    "odino": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "--user", "1000:1000",
+        "-v", "/Users/<you>/.cache/odino:/var/cache/odino",
+        "odino:latest", "mcp"
+      ]
+    }
+  }
+}
+```
+
+(Replace `1000:1000` with `$(id -u):$(id -g)` if your MCP host expands it,
+otherwise hard-code your own UID/GID.)
+
+After restarting the agent, the model will use `arrivals`, `vehicles`,
+`stops_nearby`, etc. as typed tools instead of shelling out.
+
+## Notes
+
+- Times are reported in `Europe/Rome`.
+- Service alert text appears in the language Roma Mobilità publishes
+  (mostly Italian), with English used when a translation is available.
+- Realtime coverage is provided by Roma Mobilità for ATAC and Roma TPL
+  operators. Other operators (Troiani, SAP, BIS, TUSCIA) appear from the
+  static schedule only and rows are tagged `SCHED`.
+- Roma Mobilità describes the feeds as *experimental*; predictions
+  depend on AVM (satellite vehicle monitoring) and may be missing for
+  unmonitored runs.
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+MIT.
