@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -13,6 +16,25 @@ import (
 
 	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/realtime"
 )
+
+// mcpLog is the logger used by the MCP server. By default it writes to stderr (the
+// host process captures it). If ODINO_LOG_FILE is set, stderr is tee'd into that file.
+var mcpLog = log.New(os.Stderr, "[odino-mcp] ", log.LstdFlags|log.Lmicroseconds)
+
+// initMCPLog wires the log destination from ODINO_LOG_FILE (if set).
+func initMCPLog() {
+	path := strings.TrimSpace(os.Getenv("ODINO_LOG_FILE"))
+	if path == "" {
+		return
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		mcpLog.Printf("ODINO_LOG_FILE=%q open failed: %v (continuing with stderr only)", path, err)
+		return
+	}
+	mcpLog.SetOutput(io.MultiWriter(os.Stderr, f))
+	mcpLog.Printf("logging to %s", path)
+}
 
 // newMCPCmd registers `odino mcp`, an MCP server over stdio that exposes the same
 // data the CLI does, so agents can answer queries like "next 64 at Termini".
@@ -34,6 +56,8 @@ Add to claude_desktop_config.json:
 }
 
 func runMCPServer(ctx context.Context) error {
+	initMCPLog()
+	mcpLog.Printf("starting MCP server (version=%s, pid=%d)", Version, os.Getpid())
 	srv := mcpserver.NewMCPServer(
 		"odino",
 		Version,
@@ -149,17 +173,41 @@ func runMCPServer(ctx context.Context) error {
 // toolHandler adapts a typed handler returning any+error into the mcp-go ToolHandlerFunc shape.
 func toolHandler(fn func(context.Context, map[string]any) (any, error)) mcpserver.ToolHandlerFunc {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		toolName := req.Params.Name
 		args := req.GetArguments()
+		start := time.Now()
+		mcpLog.Printf("tool=%s args=%s", toolName, summarizeArgs(args))
+
 		v, err := fn(ctx, args)
+		took := time.Since(start)
 		if err != nil {
+			mcpLog.Printf("tool=%s ERROR after %s: %v", toolName, took, err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 		buf, err := json.Marshal(v)
 		if err != nil {
+			mcpLog.Printf("tool=%s marshal ERROR after %s: %v", toolName, took, err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
+		mcpLog.Printf("tool=%s ok in %s (response %d bytes)", toolName, took, len(buf))
 		return mcp.NewToolResultText(string(buf)), nil
 	}
+}
+
+// summarizeArgs renders the args map compactly for logging; truncates oversized values.
+func summarizeArgs(args map[string]any) string {
+	if len(args) == 0 {
+		return "{}"
+	}
+	b, err := json.Marshal(args)
+	if err != nil {
+		return "<unmarshalable>"
+	}
+	const maxLen = 240
+	if len(b) > maxLen {
+		return string(b[:maxLen]) + "…"
+	}
+	return string(b)
 }
 
 func stringArg(args map[string]any, key string) string {
@@ -226,14 +274,28 @@ func intArg(args map[string]any, key string, def int) int {
 // mcpAppForce=true matches the CLI's update behaviour; default false elsewhere.
 func mcpApp(ctx context.Context, force bool) (*app, error) {
 	flags := &rootFlags{asJSON: true}
-	// MCP responses are JSON, so we discard human output. Error writer kept as os.Stderr
-	// via the caller of the server; here we use noop writers.
-	return buildApp(ctx, flags, force, devNull{}, devNull{})
+	// MCP responses are JSON, so we discard human stdout. Stderr-like messages
+	// (cache refresh notices, fetch warnings) go through mcpLog so the host can
+	// capture them and ODINO_LOG_FILE picks them up.
+	return buildApp(ctx, flags, force, devNull{}, &logWriter{lg: mcpLog})
 }
 
 type devNull struct{}
 
 func (devNull) Write(p []byte) (int, error) { return len(p), nil }
+
+// logWriter funnels writes through a *log.Logger, one line per Write (already-line-buffered
+// by the GTFS cache progress messages).
+type logWriter struct{ lg *log.Logger }
+
+func (w *logWriter) Write(p []byte) (int, error) {
+	for _, line := range strings.Split(strings.TrimRight(string(p), "\n"), "\n") {
+		if s := strings.TrimSpace(line); s != "" {
+			w.lg.Print(s)
+		}
+	}
+	return len(p), nil
+}
 
 func runArrivalsForMCP(ctx context.Context, stop, route string, limit, window int) (any, error) {
 	a, err := mcpApp(ctx, false)

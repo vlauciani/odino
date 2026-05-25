@@ -122,11 +122,11 @@ func (c *Cache) refresh(ctx context.Context, st *store.Store, force bool, log io
 	}
 
 	// If the previous cache was built from the same md5 and the DB has rows, skip re-parse.
+	// IMPORTANT: do NOT bump last_updated here. Doing so would extend the TTL window
+	// past the upstream MD5 check that proved it, and let an upstream feed change that
+	// happens later in that window go unnoticed for up to 24h. last_updated must count
+	// from the last real import; every check past the TTL must actually re-fetch the MD5.
 	if prev, _ := st.Meta("md5"); prev != "" && strings.EqualFold(prev, localMD5) && !force {
-		// Even if md5 unchanged, mark fresh so next call short-circuits on TTL.
-		if err := st.MarkUpdated(time.Now(), localMD5); err != nil {
-			return err
-		}
 		fmt.Fprintln(log, "  feed unchanged (md5 match), keeping existing tables.")
 		return nil
 	}
