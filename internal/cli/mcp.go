@@ -124,6 +124,25 @@ func runMCPServer(ctx context.Context) error {
 		}),
 	)
 
+	// vehicle_follow
+	srv.AddTool(
+		mcp.NewTool("vehicle_follow",
+			mcp.WithDescription("Follow a specific vehicle across its remaining stops. Given a vehicle_id (e.g. \"888\" from the arrivals/vehicles tools), returns the vehicle's current trip, line, position, and the ordered list of upcoming stops with predicted times (tagged LIVE or SCHED). Pass to_stop_id to trim the list to a destination and receive a 'destination' summary with ETA, minutes_remaining, and number of stops to go — ideal for 'how long until bus X reaches stop Y?'."),
+			mcp.WithString("vehicle_id", mcp.Required(), mcp.Description("Vehicle identifier as published by the realtime feed (e.g. \"888\").")),
+			mcp.WithString("to_stop_id", mcp.Description("Optional destination stop_id. Trims the upcoming-stops list to end at this stop and populates the 'destination' field of the response.")),
+			mcp.WithNumber("limit", mcp.Description("Maximum number of upcoming stops to return (0 = all remaining). Ignored when to_stop_id is set."), mcp.DefaultNumber(0)),
+		),
+		toolHandler(func(ctx context.Context, args map[string]any) (any, error) {
+			id := stringArg(args, "vehicle_id")
+			if id == "" {
+				return nil, fmt.Errorf("vehicle_id is required")
+			}
+			to := stringArg(args, "to_stop_id")
+			limit := intArg(args, "limit", 0)
+			return runVehicleFollowForMCP(ctx, id, to, limit)
+		}),
+	)
+
 	// stops_nearby
 	srv.AddTool(
 		mcp.NewTool("stops_nearby",

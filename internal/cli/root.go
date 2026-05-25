@@ -59,6 +59,7 @@ func NewRootCmd() *cobra.Command {
 		newUpdateCmd(flags),
 		newArrivalsCmd(flags),
 		newVehiclesCmd(flags),
+		newVehicleCmd(flags),
 		newAlertsCmd(flags),
 		newStopsCmd(flags),
 		newRoutesCmd(flags),

@@ -439,6 +439,47 @@ func (s *Store) TripInfoByID(ctx context.Context, tripID string) (*TripInfo, err
 	return &v, nil
 }
 
+// TripStop is one ordered stop on a trip's schedule, joined with stop metadata.
+type TripStop struct {
+	StopSequence int     `json:"stop_sequence"`
+	StopID       string  `json:"stop_id"`
+	StopName     string  `json:"stop_name"`
+	StopLat      float64 `json:"stop_lat"`
+	StopLon      float64 `json:"stop_lon"`
+	ArrivalSec   int     `json:"arrival_sec"`   // seconds since service-day midnight
+	DepartureSec int     `json:"departure_sec"`
+}
+
+// TripScheduleByID returns the trip metadata plus the ordered stop sequence for tripID,
+// joined with stop names and coordinates. Returns nil, nil when the trip is unknown.
+func (s *Store) TripScheduleByID(ctx context.Context, tripID string) (*TripInfo, []TripStop, error) {
+	info, err := s.TripInfoByID(ctx, tripID)
+	if err != nil || info == nil {
+		return nil, nil, err
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT st.stop_sequence,
+		       st.stop_id, IFNULL(s.stop_name,''), IFNULL(s.stop_lat,0), IFNULL(s.stop_lon,0),
+		       st.arrival_time, st.departure_time
+		FROM stop_times st
+		JOIN stops s ON s.stop_id = st.stop_id
+		WHERE st.trip_id = ?
+		ORDER BY st.stop_sequence`, tripID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	var stops []TripStop
+	for rows.Next() {
+		var ts TripStop
+		if err := rows.Scan(&ts.StopSequence, &ts.StopID, &ts.StopName, &ts.StopLat, &ts.StopLon, &ts.ArrivalSec, &ts.DepartureSec); err != nil {
+			return nil, nil, err
+		}
+		stops = append(stops, ts)
+	}
+	return info, stops, rows.Err()
+}
+
 // ScheduledStopTime returns the planned departure_time (seconds since service midnight)
 // for the given trip_id at stop_id. Returns -1 if no match.
 func (s *Store) ScheduledStopTime(ctx context.Context, tripID, stopID string) (int, error) {
