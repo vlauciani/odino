@@ -316,11 +316,15 @@ func runArrivalsForMCP(ctx context.Context, stop, route string, limit, window in
 	if rtTU, rtErr := a.rt.TripUpdates(ctx); rtErr == nil {
 		rtLookup = realtime.BuildTripUpdateLookup(rtTU)
 	}
+	var vehByTrip map[string]string
+	if vp, err := a.rt.VehiclePositions(ctx); err == nil {
+		vehByTrip = realtime.VehicleByTrip(vp)
+	}
 	scheduled, err := scheduledInWindow(ctx, a.store, stopID, route, now, windowEnd)
 	if err != nil {
 		return nil, err
 	}
-	rows := mergeArrivals(scheduled, rtLookup, stopID, now, windowEnd, route, a, ctx)
+	rows := mergeArrivals(scheduled, rtLookup, vehByTrip, stopID, now, windowEnd, route, a, ctx)
 	if limit > 0 && len(rows) > limit {
 		rows = rows[:limit]
 	}

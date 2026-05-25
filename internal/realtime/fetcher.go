@@ -110,6 +110,8 @@ type TripUpdateLookup struct {
 	byTripStop map[string]map[string]*StopTimeEvent
 	// byTrip maps trip_id → header-level delay (used as fallback when no per-stop event exists).
 	byTrip map[string]int32
+	// byTripVehicle maps trip_id → vehicle_id when the trip_update declares one.
+	byTripVehicle map[string]string
 	// timestamp from the feed header.
 	Timestamp time.Time
 }
@@ -127,8 +129,9 @@ type StopTimeEvent struct {
 // BuildTripUpdateLookup indexes a trip_updates FeedMessage.
 func BuildTripUpdateLookup(msg *gtfsrt.FeedMessage) *TripUpdateLookup {
 	out := &TripUpdateLookup{
-		byTripStop: map[string]map[string]*StopTimeEvent{},
-		byTrip:     map[string]int32{},
+		byTripStop:    map[string]map[string]*StopTimeEvent{},
+		byTrip:        map[string]int32{},
+		byTripVehicle: map[string]string{},
 	}
 	if msg == nil {
 		return out
@@ -147,6 +150,9 @@ func BuildTripUpdateLookup(msg *gtfsrt.FeedMessage) *TripUpdateLookup {
 		}
 		if tu.Delay != nil {
 			out.byTrip[tripID] = tu.GetDelay()
+		}
+		if v := tu.GetVehicle().GetId(); v != "" {
+			out.byTripVehicle[tripID] = v
 		}
 		for _, stu := range tu.GetStopTimeUpdate() {
 			stopID := stu.GetStopId()
@@ -204,6 +210,35 @@ func (l *TripUpdateLookup) TripDelay(tripID string) (int32, bool) {
 	}
 	d, ok := l.byTrip[tripID]
 	return d, ok
+}
+
+// VehicleID returns the vehicle assigned to tripID by the trip_updates feed, or "" if none.
+func (l *TripUpdateLookup) VehicleID(tripID string) string {
+	if l == nil {
+		return ""
+	}
+	return l.byTripVehicle[tripID]
+}
+
+// VehicleByTrip extracts a trip_id → vehicle_id map from a vehicle_positions FeedMessage.
+// Used as a fallback when trip_updates don't include vehicle descriptors.
+func VehicleByTrip(msg *gtfsrt.FeedMessage) map[string]string {
+	out := map[string]string{}
+	if msg == nil {
+		return out
+	}
+	for _, ent := range msg.GetEntity() {
+		vp := ent.GetVehicle()
+		if vp == nil {
+			continue
+		}
+		tripID := vp.GetTrip().GetTripId()
+		vehID := vp.GetVehicle().GetId()
+		if tripID != "" && vehID != "" {
+			out[tripID] = vehID
+		}
+	}
+	return out
 }
 
 // TripStops returns the set of (tripID, stopID) keys present in the feed. Used to render
