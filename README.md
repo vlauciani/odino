@@ -68,6 +68,7 @@ Commands:
   update                  Refresh the GTFS static cache.
   arrivals <stop>         Next arrivals at a stop (live + scheduled).
   vehicles                Live vehicle positions, optionally filtered by line.
+  vehicle <vehicle_id>    Follow a specific vehicle across its remaining stops.
   alerts                  Active service alerts.
   stops search <query>    Search stops by name substring.
   stops nearby --lat --lon --radius [--route]
@@ -82,6 +83,12 @@ arrivals flags:
   --route <name>          Filter by route_short_name (e.g. 64).
   --limit <n>             Max rows (default 10).
   --window <minutes>      Look-ahead window (default 60).
+
+vehicle flags:
+  --to <stop_id>          Destination stop. Trims the upcoming list to end
+                          at this stop and prints a summary line with ETA,
+                          minutes remaining, and stops to go.
+  --limit <n>             Max upcoming stops (0 = all). Ignored when --to is set.
 
 stops nearby flags:
   --lat <deg>             Latitude (WGS84, decimal degrees). Required.
@@ -125,6 +132,12 @@ odino arrivals 77211 --route 64 --json | jq .
 # Live position of every line-64 bus.
 odino vehicles --route 64
 
+# Follow a specific vehicle through every remaining stop on its current trip.
+odino vehicle 888
+
+# Same, but only up to a destination stop_id (ETA + stops-to-go summary).
+odino vehicle 888 --to 74618
+
 # Active service alerts.
 odino alerts
 ```
@@ -154,6 +167,11 @@ docker run --rm --user $(id -u):$(id -g) \
 docker run --rm --user $(id -u):$(id -g) \
   -v ~/.cache/odino:/var/cache/odino \
   odino:latest vehicles --route 64 --json
+
+# Follow bus 888 until it reaches stop 74618 (ETA + stops to go).
+docker run --rm --user $(id -u):$(id -g) \
+  -v ~/.cache/odino:/var/cache/odino \
+  odino:latest vehicle 888 --to 74618
 ```
 
 Handy shell alias:
@@ -169,8 +187,12 @@ alias odino='docker run --rm --user $(id -u):$(id -g) \
 `odino mcp` starts a Model Context Protocol server on stdio. Each CLI
 subcommand is exposed as an MCP tool returning JSON.
 
-Available tools: `arrivals`, `vehicles`, `alerts`, `stops_search`,
-`stops_nearby`, `routes`, `update`.
+Available tools: `arrivals`, `vehicles`, `vehicle_follow`, `alerts`,
+`stops_search`, `stops_nearby`, `routes`, `update`.
+
+`vehicle_follow` mirrors the `odino vehicle` CLI command, including the
+optional `to_stop_id` argument that produces a `destination` summary with
+ETA, minutes remaining and stops to go.
 
 ### Claude Desktop
 
