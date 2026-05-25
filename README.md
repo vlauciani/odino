@@ -113,14 +113,14 @@ odino stops nearby --lat 41.853563 --lon 12.499133 --radius 300
 odino stops nearby --lat 41.853563 --lon 12.499133 --radius 800 --route 30
 
 # Next arrivals at a stop (by stop_id or name substring).
-odino arrivals 79790
+odino arrivals 77211
 odino arrivals "Vittorio Emanuele/Argentina"
 
 # Filter by line.
-odino arrivals 79790 --route 64
+odino arrivals 77211 --route 64
 
 # JSON output (for scripts and agents).
-odino arrivals 79790 --route 64 --json | jq .
+odino arrivals 77211 --route 64 --json | jq .
 
 # Live position of every line-64 bus.
 odino vehicles --route 64
@@ -140,10 +140,10 @@ docker run --rm --user $(id -u):$(id -g) \
   -v ~/.cache/odino:/var/cache/odino \
   odino:latest update
 
-# Next arrivals at C.so Vittorio Emanuele / Argentina (stop 79790), line 64.
+# Next arrivals at C.so Vittorio Emanuele / Argentina (stop 77211), line 64.
 docker run --rm --user $(id -u):$(id -g) \
   -v ~/.cache/odino:/var/cache/odino \
-  odino:latest arrivals 79790 --route 64
+  odino:latest arrivals 77211 --route 64
 
 # Stops within 250 m of a coordinate.
 docker run --rm --user $(id -u):$(id -g) \
@@ -161,7 +161,7 @@ Handy shell alias:
 ```sh
 alias odino='docker run --rm --user $(id -u):$(id -g) \
   -v ~/.cache/odino:/var/cache/odino odino:latest'
-# Then: odino arrivals 79790 --route 64
+# Then: odino arrivals 77211 --route 64
 ```
 
 ## MCP server
@@ -193,18 +193,22 @@ Restart Claude Desktop after saving.
 ### Claude Code
 
 ```sh
-claude mcp add odino "$(which odino)" mcp
+claude mcp add odino "$(which odino)" mcp \
+  --env ODINO_LOG_FILE=$HOME/.cache/odino/mcp.log
 ```
 
-Or edit `~/.claude/settings.json` (or `.claude/settings.json` in the
-project) by hand:
+Or edit `~/.claude.json` (or the project's `.mcp.json`) by hand. The
+`env.ODINO_LOG_FILE` entry is optional but recommended — Claude Code
+swallows the server's `stderr`, so this is the only way to see odino's
+own log lines (see [Logs and debugging](#logs-and-debugging)):
 
 ```json
 {
   "mcpServers": {
     "odino": {
-      "command": "/Users/<you>/go/bin/odino",
-      "args": ["mcp"]
+      "command": "/Users/<you>/gitwork/gitlab/_valentino.lauciani/odino/odino",
+      "args": ["mcp"],
+      "env": { "ODINO_LOG_FILE": "/Users/<you>/.cache/odino/mcp.log" }
     }
   }
 }
@@ -248,6 +252,78 @@ otherwise hard-code your own UID/GID.)
 
 After restarting the agent, the model will use `arrivals`, `vehicles`,
 `stops_nearby`, etc. as typed tools instead of shelling out.
+
+### Logs and debugging
+
+The MCP protocol owns `stdout` (JSON-RPC framing) and `stdin`, so every
+log line goes to `stderr`. Each tool call is logged with name,
+arguments and duration:
+
+```
+[odino-mcp] 2026/05/23 23:37:04.255913 starting MCP server (version=dev, pid=80096)
+[odino-mcp] 2026/05/23 23:37:04.256740 tool=stops_search args={"limit":3,"query":"Odescalchi"}
+[odino-mcp] 2026/05/23 23:37:04.263410 tool=stops_search ok in 6.663541ms (response 348 bytes)
+```
+
+Where this output lands depends on the host — and most hosts split the
+information between two files.
+
+#### Claude Code CLI
+
+Two distinct log destinations, **both useful**:
+
+| What | Where |
+| --- | --- |
+| Claude-side protocol log (connect, capabilities, per-tool completion timing) | `~/Library/Caches/claude-cli-nodejs/<project-slug>/mcp-logs-odino/<timestamp>.jsonl` |
+| Server-side log (the `[odino-mcp] …` lines: args, payload size, internal errors) | the file pointed to by `ODINO_LOG_FILE` |
+
+`<project-slug>` is the working directory you launched `claude` from,
+with `/` replaced by `-` (folders starting with `_` become `--`). For
+this repo, that's:
+
+```sh
+ls ~/Library/Caches/claude-cli-nodejs/-Users-<you>-gitwork-gitlab--valentino-lauciani-odino/mcp-logs-odino/
+```
+
+**Claude Code does not capture the MCP server's `stderr`**, so the
+detailed `[odino-mcp]` lines are visible only if `ODINO_LOG_FILE` is
+set in the MCP config:
+
+```json
+{
+  "mcpServers": {
+    "odino": {
+      "command": "/Users/<you>/gitwork/gitlab/_valentino.lauciani/odino/odino",
+      "args": ["mcp"],
+      "env": { "ODINO_LOG_FILE": "/Users/<you>/.cache/odino/mcp.log" }
+    }
+  }
+}
+```
+
+Follow both at once during debugging:
+
+```sh
+# terminal 1 — Claude-side protocol & tool timings
+tail -F ~/Library/Caches/claude-cli-nodejs/-Users-<you>-*/mcp-logs-odino/*.jsonl
+
+# terminal 2 — server-side: args, response size, internal warnings
+tail -F ~/.cache/odino/mcp.log
+```
+
+#### Other hosts
+
+| Host | Stderr location |
+| --- | --- |
+| Claude Desktop (macOS) | `~/Library/Logs/Claude/mcp-server-odino.log` (plus the general `~/Library/Logs/Claude/mcp.log`) |
+| Claude Desktop (Windows) | `%APPDATA%\Claude\logs\mcp-server-odino.log` |
+| Codex CLI | captured as part of the Codex session log |
+
+These hosts forward the server's `stderr` to disk, so the
+`[odino-mcp] …` lines appear without any extra configuration. Setting
+`ODINO_LOG_FILE` is still useful as a portable, host-agnostic log you
+can `tail -f` directly, and is required when running the MCP server
+inside Docker (where the host typically discards container stderr).
 
 ## Notes
 
