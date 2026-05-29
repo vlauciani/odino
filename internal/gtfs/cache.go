@@ -89,9 +89,19 @@ func (c *Cache) refresh(ctx context.Context, st *store.Store, force bool, log io
 	}
 	fmt.Fprintln(log, "Updating GTFS cache…")
 
-	// Fetch upstream md5 (best-effort: continue even if missing).
-	remoteMD5, _ := fetchString(ctx, StaticMD5URL)
-	remoteMD5 = strings.TrimSpace(strings.Fields(remoteMD5+" ")[0]) // strip filename in `md5 zip` format
+	// Fetch upstream md5 (best-effort: continue even if missing or upstream is down).
+	// The .md5 file usually looks like "abc123…  rome_static_gtfs.zip" — keep the
+	// first whitespace-separated token. A failed fetch (e.g. 504 Gateway Timeout
+	// from romamobilita.it) leaves remoteMD5 empty; downstream code already handles
+	// that as "no upstream md5 known".
+	remoteMD5Raw, err := fetchString(ctx, StaticMD5URL)
+	if err != nil {
+		fmt.Fprintf(log, "  warning: could not fetch upstream md5 (%v); will rely on local zip\n", err)
+	}
+	remoteMD5 := ""
+	if fields := strings.Fields(remoteMD5Raw); len(fields) > 0 {
+		remoteMD5 = fields[0]
+	}
 
 	// Decide whether we can skip the download by comparing with on-disk zip.
 	zipExists := false
