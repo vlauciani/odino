@@ -1,0 +1,39 @@
+# Development image: every push to `develop` rebuilds and pushes the multi-arch
+# tag `vlauciani/odino:develop` to Docker Hub, so the latest develop state is
+# pullable for testing without cutting a release. Builds from source via the
+# multi-stage ./Dockerfile. Tagged releases are handled by release.yml.
+name: docker-dev
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Short commit sha, baked into the version string for traceability.
+      - id: vars
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push develop image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: vlauciani/odino:develop
+          build-args: |
+            VERSION=develop-${{ steps.vars.outputs.sha }}
