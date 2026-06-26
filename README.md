@@ -1,3 +1,13 @@
+|**Service**|**Main**|**Develop**|
+|---|---|---|
+|CI|[![CI](https://github.com/vlauciani/odino/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vlauciani/odino/actions/workflows/ci.yml?query=branch%3Amain)|[![CI](https://github.com/vlauciani/odino/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/vlauciani/odino/actions/workflows/ci.yml?query=branch%3Adevelop)|
+
+[![Latest release](https://img.shields.io/github/v/release/vlauciani/odino)](https://github.com/vlauciani/odino/releases)
+[![Docker Pulls](https://img.shields.io/docker/pulls/vlauciani/odino)](https://hub.docker.com/r/vlauciani/odino)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vlauciani/odino)](https://goreportcard.com/report/github.com/vlauciani/odino)
+[![License: MIT](https://img.shields.io/github/license/vlauciani/odino)](https://github.com/vlauciani/odino/blob/main/LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/vlauciani/odino)](https://github.com/vlauciani/odino/issues)
+
 # odino
 
 CLI for Rome public-transport realtime arrivals, backed by the
