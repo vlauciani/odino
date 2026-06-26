@@ -24,7 +24,7 @@ only when its upstream MD5 changes, so daily refreshes are nearly free.
 ### From source
 
 ```sh
-git clone https://gitlab.rm.ingv.it/valentino.lauciani/odino.git
+git clone https://github.com/vlauciani/odino.git
 cd odino
 go build -o odino ./cmd/odino
 ```
@@ -32,7 +32,7 @@ go build -o odino ./cmd/odino
 ### Via `go install`
 
 ```sh
-go install gitlab.rm.ingv.it/valentino.lauciani/odino/cmd/odino@latest
+go install github.com/vlauciani/odino/cmd/odino@latest
 ```
 
 This drops the `odino` binary in `$(go env GOPATH)/bin` (usually `~/go/bin`).

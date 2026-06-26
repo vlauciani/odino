@@ -10,8 +10,8 @@ import (
 
 	gtfsrt "github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
 
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/output"
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/store"
+	"github.com/vlauciani/odino/internal/output"
+	"github.com/vlauciani/odino/internal/store"
 )
 
 // --- update ---

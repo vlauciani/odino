@@ -9,8 +9,8 @@ import (
 	"time"
 	"unicode"
 
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/realtime"
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/store"
+	"github.com/vlauciani/odino/internal/realtime"
+	"github.com/vlauciani/odino/internal/store"
 )
 
 // A "place" (Termini, Odescalchi) is what a human names; Rome's GTFS has no station, so a

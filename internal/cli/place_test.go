@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/store"
+	"github.com/vlauciani/odino/internal/store"
 )
 
 func TestSignificantStopTokens(t *testing.T) {

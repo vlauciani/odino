@@ -10,8 +10,8 @@ import (
 	gtfsrt "github.com/MobilityData/gtfs-realtime-bindings/golang/gtfs"
 	"github.com/spf13/cobra"
 
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/output"
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/realtime"
+	"github.com/vlauciani/odino/internal/output"
+	"github.com/vlauciani/odino/internal/realtime"
 )
 
 // vehicleFollowRow is one upcoming stop in the vehicle's current trip.

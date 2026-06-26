@@ -1,4 +1,4 @@
-module gitlab.rm.ingv.it/valentino.lauciani/odino
+module github.com/vlauciani/odino
 
 go 1.26.3
 

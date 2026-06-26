@@ -14,7 +14,7 @@ import (
 	mcpserver "github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/cobra"
 
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/store"
+	"github.com/vlauciani/odino/internal/store"
 )
 
 // mcpLog is the logger used by the MCP server. By default it writes to stderr (the

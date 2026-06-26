@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/cli"
+	"github.com/vlauciani/odino/internal/cli"
 )
 
 func main() {

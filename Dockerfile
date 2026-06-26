@@ -19,7 +19,7 @@ ARG VERSION=dev
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=linux \
-    go build -trimpath -ldflags="-s -w -X gitlab.rm.ingv.it/valentino.lauciani/odino/internal/cli.Version=${VERSION}" \
+    go build -trimpath -ldflags="-s -w -X github.com/vlauciani/odino/internal/cli.Version=${VERSION}" \
     -o /out/odino ./cmd/odino
 
 # --- runtime --------------------------------------------------------------

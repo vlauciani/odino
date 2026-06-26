@@ -10,9 +10,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/output"
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/realtime"
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/store"
+	"github.com/vlauciani/odino/internal/output"
+	"github.com/vlauciani/odino/internal/realtime"
+	"github.com/vlauciani/odino/internal/store"
 )
 
 // arrivalRow is one rendered row in the arrivals view.

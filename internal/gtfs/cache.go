@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/store"
+	"github.com/vlauciani/odino/internal/store"
 )
 
 // Roma Mobilità GTFS endpoints. The realtime URLs live in the realtime package.
