@@ -1,5 +1,8 @@
 # Release Notes
 
+### Release 1.0.2 (2026-06-26)
+  - Fix Docker Hub login in the release and docker-dev workflows: reference the actual `DOCKER_HUB_USERNAME` and `DOCKER_HUB_ACCESS_TOKEN` repo secrets
+
 ### Release 1.0.1 (2026-06-26)
   - Fix the CI lint job: upgrade golangci-lint-action to v8 so golangci-lint v2 runs against the go 1.26 module
   - Point Dependabot updates at the `develop` branch to follow the git-flow integration path
