@@ -1,1 +1,1 @@
-Valentino Lauciani <valentino.lauciani@ingv.it>
+Valentino Lauciani <vlauciani@gmail.com>
