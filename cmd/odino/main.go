@@ -9,6 +9,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	// Embed the IANA tz database into the binary so time.LoadLocation("Europe/Rome")
+	// works on any host, including minimal systems (scratch/distroless containers,
+	// stripped distros) that ship no system zoneinfo. Without this a prebuilt binary
+	// could fail at startup on machines we don't control.
+	_ "time/tzdata"
+
 	"github.com/vlauciani/odino/internal/cli"
 )
 
