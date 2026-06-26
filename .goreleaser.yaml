@@ -1,0 +1,92 @@
+# GoReleaser v2 — one `git tag` produces: per-platform binaries on the GitHub
+# Release, a multi-arch image on GHCR, and checksums. `go install` keeps working
+# independently. Docs: https://goreleaser.com
+version: 2
+
+project_name: odino
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: odino
+    main: ./cmd/odino
+    binary: odino
+    # Pure-Go (modernc.org/sqlite), so CGO off → fully static cross-compiled binaries.
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X github.com/vlauciani/odino/internal/cli.Version={{ .Version }}
+
+archives:
+  - id: odino
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^style:"
+      - "^chore:"
+      - "^ci:"
+
+# Multi-arch image on GHCR: one per-arch build, then a manifest that ties them together.
+dockers:
+  - id: amd64
+    goos: linux
+    goarch: amd64
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    image_templates:
+      - "ghcr.io/vlauciani/odino:{{ .Version }}-amd64"
+      - "ghcr.io/vlauciani/odino:latest-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.source=https://github.com/vlauciani/odino"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+  - id: arm64
+    goos: linux
+    goarch: arm64
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    image_templates:
+      - "ghcr.io/vlauciani/odino:{{ .Version }}-arm64"
+      - "ghcr.io/vlauciani/odino:latest-arm64"
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.source=https://github.com/vlauciani/odino"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+
+docker_manifests:
+  - name_template: "ghcr.io/vlauciani/odino:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/vlauciani/odino:{{ .Version }}-amd64"
+      - "ghcr.io/vlauciani/odino:{{ .Version }}-arm64"
+  - name_template: "ghcr.io/vlauciani/odino:latest"
+    image_templates:
+      - "ghcr.io/vlauciani/odino:latest-amd64"
+      - "ghcr.io/vlauciani/odino:latest-arm64"
+
+release:
+  github:
+    owner: vlauciani
+    name: odino
+  draft: false
+  prerelease: auto

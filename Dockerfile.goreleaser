@@ -1,0 +1,20 @@
+# Runtime image for the GoReleaser pipeline: it COPYs the already-cross-compiled
+# binary from the build context (no in-image compilation). For building straight
+# from source instead, use the multi-stage ./Dockerfile.
+FROM alpine:3.20
+
+# ca-certificates: HTTPS to the Roma Mobilità GTFS feeds. tzdata is also embedded
+# in the binary (time/tzdata), so this is belt-and-suspenders for Europe/Rome.
+RUN apk add --no-cache ca-certificates tzdata \
+    && adduser -D -u 1000 odino \
+    && mkdir -p /var/cache/odino \
+    && chown -R odino:odino /var/cache/odino
+
+COPY odino /usr/local/bin/odino
+
+USER odino
+ENV ODINO_CACHE_DIR=/var/cache/odino
+VOLUME ["/var/cache/odino"]
+
+ENTRYPOINT ["/usr/local/bin/odino"]
+CMD ["--help"]
