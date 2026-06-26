@@ -1,0 +1,21 @@
+# Dependabot keeps dependencies current by opening isolated PRs (validated by CI)
+# when updates or security fixes are available. https://docs.github.com/code-security/dependabot
+version: 2
+updates:
+  # Go modules (go.mod / go.sum).
+  - package-ecosystem: gomod
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+    open-pull-requests-limit: 5
+
+  # Versions of the actions used in the GitHub Actions workflows.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    open-pull-requests-limit: 5
