@@ -1,5 +1,8 @@
 # Release Notes
 
+### Release 1.1.0-dev (2026-06-26)
+  - . . .
+
 ### Release 1.0.0 (2026-06-26)
   - Add Rome public-transport CLI backed by the Roma Mobilità GTFS static + GTFS-Realtime feeds (no API key required)
   - Add `arrivals` command merging live trip updates with the planned schedule, each row tagged LIVE or SCHED
