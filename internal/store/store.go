@@ -170,6 +170,57 @@ type Stop struct {
 	StopLon  float64 `json:"stop_lon"`
 }
 
+// LineDirection is one line serving a pole, in one direction of travel. Headsign is the
+// destination shown on the vehicle (GTFS trip_headsign); DirectionID is GTFS direction_id.
+type LineDirection struct {
+	RouteShortName string `json:"route_short_name,omitempty"`
+	Headsign       string `json:"headsign,omitempty"`
+	DirectionID    int    `json:"direction_id"`
+}
+
+// LinesByStop returns, for each requested stop_id, the distinct lines+directions that serve
+// it. When routeShort is non-empty, only that line is considered. The result is keyed by
+// stop_id; stops with no serving trip are simply absent from the map. Within each stop the
+// lines are de-duplicated on (route_short_name, direction_id, headsign) and ordered.
+func (s *Store) LinesByStop(ctx context.Context, stopIDs []string, routeShort string) (map[string][]LineDirection, error) {
+	if len(stopIDs) == 0 {
+		return map[string][]LineDirection{}, nil
+	}
+	ph := make([]string, len(stopIDs))
+	args := make([]any, 0, len(stopIDs)+1)
+	for i, id := range stopIDs {
+		ph[i] = "?"
+		args = append(args, id)
+	}
+	q := `SELECT DISTINCT st.stop_id, IFNULL(r.route_short_name,''),
+	             IFNULL(t.trip_headsign,''), IFNULL(t.direction_id,0)
+	      FROM stop_times st
+	      JOIN trips t  ON t.trip_id  = st.trip_id
+	      JOIN routes r ON r.route_id = t.route_id
+	      WHERE st.stop_id IN (` + strings.Join(ph, ",") + `)`
+	if routeShort != "" {
+		q += ` AND LOWER(r.route_short_name) = LOWER(?)`
+		args = append(args, routeShort)
+	}
+	q += ` ORDER BY r.route_short_name, t.direction_id, t.trip_headsign`
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string][]LineDirection{}
+	for rows.Next() {
+		var sid string
+		var ld LineDirection
+		if err := rows.Scan(&sid, &ld.RouteShortName, &ld.Headsign, &ld.DirectionID); err != nil {
+			return nil, err
+		}
+		// The DISTINCT in SQL already collapses duplicates; ORDER BY keeps them grouped.
+		out[sid] = append(out[sid], ld)
+	}
+	return out, rows.Err()
+}
+
 // StopByID returns the stop with the given stop_id, or nil if missing.
 func (s *Store) StopByID(ctx context.Context, id string) (*Stop, error) {
 	row := s.db.QueryRowContext(ctx,
@@ -446,7 +497,7 @@ type TripStop struct {
 	StopName     string  `json:"stop_name"`
 	StopLat      float64 `json:"stop_lat"`
 	StopLon      float64 `json:"stop_lon"`
-	ArrivalSec   int     `json:"arrival_sec"`   // seconds since service-day midnight
+	ArrivalSec   int     `json:"arrival_sec"` // seconds since service-day midnight
 	DepartureSec int     `json:"departure_sec"`
 }
 
