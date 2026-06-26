@@ -25,6 +25,7 @@ type arrivalRow struct {
 	Source    string    `json:"source"` // LIVE | SCHED
 	TripID    string    `json:"trip_id"`
 	RouteID   string    `json:"route_id"`
+	StopID    string    `json:"stop_id,omitempty"` // set only on aggregated multi-pole arrivals
 }
 
 func newArrivalsCmd(flags *rootFlags) *cobra.Command {

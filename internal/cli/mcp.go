@@ -14,7 +14,7 @@ import (
 	mcpserver "github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/cobra"
 
-	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/realtime"
+	"gitlab.rm.ingv.it/valentino.lauciani/odino/internal/store"
 )
 
 // mcpLog is the logger used by the MCP server. By default it writes to stderr (the
@@ -67,9 +67,22 @@ func runMCPServer(ctx context.Context) error {
 	// arrivals
 	srv.AddTool(
 		mcp.NewTool("arrivals",
-			mcp.WithDescription("Next arrivals at a Rome public-transport stop. Returns live + scheduled passages within a time window, tagged LIVE or SCHED. The stop may be a numeric stop_id or a substring of the stop name. Optionally filter by line short_name."),
-			mcp.WithString("stop", mcp.Required(), mcp.Description("Numeric stop_id (e.g. \"70910\") or substring of the stop name (e.g. \"Termini\").")),
-			mcp.WithString("route", mcp.Description("Optional route_short_name filter (e.g. \"64\").")),
+			mcp.WithDescription(`Next arrivals at a Rome public-transport stop (live + scheduled, tagged LIVE or SCHED).
+
+This is the primary tool for "when does line X pass at PLACE" and "what passes at PLACE".
+PLACE may be a street or interchange name ("Termini", "Odescalchi") — you do NOT need to call
+stops_search first. Pass the salient name; street prefixes like "Via"/"Viale" are ignored.
+
+A place usually maps to many physical poles (platforms/directions), so when the choice is still
+open this tool returns NOT an error but {"status":"ambiguous","ask":...} guiding the next call:
+  - ask="line"      -> several lines serve the place; re-call with route=<route_short_name>.
+  - ask="direction" -> re-call with direction=<direction_id "0"/"1" or a headsign substring>.
+  - ask="stop"      -> re-call with stop=<stop_id> chosen from the listed poles.
+Surface that choice to the user, then re-call. When it resolves to one pole (or a cluster of
+same-named poles) it returns {"stop"|"stops", "arrivals":[...], "alerts":[...]}.`),
+			mcp.WithString("stop", mcp.Required(), mcp.Description("Numeric stop_id (e.g. \"70910\") for an exact pole, or a place/street name (e.g. \"Termini\", \"Odescalchi\").")),
+			mcp.WithString("route", mcp.Description("Line filter: route_short_name (e.g. \"64\", \"716\"). Pass this to answer ask=\"line\".")),
+			mcp.WithString("direction", mcp.Description("Direction filter to answer ask=\"direction\": a direction_id (\"0\"/\"1\") or a substring of the headsign/destination (e.g. \"Teatro Marcello\").")),
 			mcp.WithNumber("limit", mcp.Description("Maximum number of arrivals to return."), mcp.DefaultNumber(10)),
 			mcp.WithNumber("window", mcp.Description("Look-ahead window in minutes."), mcp.DefaultNumber(60)),
 		),
@@ -79,9 +92,10 @@ func runMCPServer(ctx context.Context) error {
 				return nil, fmt.Errorf("stop is required")
 			}
 			route := stringArg(args, "route")
+			direction := stringArg(args, "direction")
 			limit := intArg(args, "limit", 10)
 			window := intArg(args, "window", 60)
-			return runArrivalsForMCP(ctx, stop, route, limit, window)
+			return runArrivalsPlaceForMCP(ctx, stop, route, direction, limit, window)
 		}),
 	)
 
@@ -110,8 +124,8 @@ func runMCPServer(ctx context.Context) error {
 	// stops_search
 	srv.AddTool(
 		mcp.NewTool("stops_search",
-			mcp.WithDescription("Search stops by substring of stop_name (case-insensitive)."),
-			mcp.WithString("query", mcp.Required(), mcp.Description("Substring of the stop name (e.g. \"Termini\").")),
+			mcp.WithDescription("Find poles by a keyword in their name (case-insensitive, e.g. \"Termini\", \"Appia\"). Each result includes lines_served (route_short_name + direction headsign), so you can see which buses pass without a follow-up call. For \"when does line X pass at PLACE\" prefer the arrivals tool directly — it resolves the place itself."),
+			mcp.WithString("query", mcp.Required(), mcp.Description("Keyword in the stop name (e.g. \"Termini\", \"Appia\").")),
 			mcp.WithNumber("limit", mcp.Description("Maximum number of results."), mcp.DefaultNumber(50)),
 		),
 		toolHandler(func(ctx context.Context, args map[string]any) (any, error) {
@@ -146,7 +160,7 @@ func runMCPServer(ctx context.Context) error {
 	// stops_nearby
 	srv.AddTool(
 		mcp.NewTool("stops_nearby",
-			mcp.WithDescription("List stops within a radius (in metres) of a (lat, lon) coordinate, sorted by ascending distance. Useful for answering 'what stops are near this address?' after geocoding the address externally. Optionally filter by line short_name."),
+			mcp.WithDescription("List poles within a radius (in metres) of a (lat, lon) coordinate, sorted by ascending distance. Each result includes lines_served (route_short_name + direction headsign). Useful for 'what stops/buses are near this address?' after geocoding the address externally. Optionally filter by line short_name."),
 			mcp.WithNumber("lat", mcp.Required(), mcp.Description("Latitude in decimal degrees (WGS84).")),
 			mcp.WithNumber("lon", mcp.Required(), mcp.Description("Longitude in decimal degrees (WGS84).")),
 			mcp.WithNumber("radius", mcp.Required(), mcp.Description("Search radius in metres.")),
@@ -316,84 +330,6 @@ func (w *logWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func runArrivalsForMCP(ctx context.Context, stop, route string, limit, window int) (any, error) {
-	a, err := mcpApp(ctx, false)
-	if err != nil {
-		return nil, err
-	}
-	defer a.close()
-
-	stopID, err := resolveStopForMCP(ctx, a, stop)
-	if err != nil {
-		return nil, err
-	}
-	stopName, _ := a.store.StopNameByID(ctx, stopID)
-	now := time.Now().In(a.loc)
-	windowEnd := now.Add(time.Duration(window) * time.Minute)
-
-	var rtLookup *realtime.TripUpdateLookup
-	if rtTU, rtErr := a.rt.TripUpdates(ctx); rtErr == nil {
-		rtLookup = realtime.BuildTripUpdateLookup(rtTU)
-	}
-	var vehByTrip map[string]string
-	if vp, err := a.rt.VehiclePositions(ctx); err == nil {
-		vehByTrip = realtime.VehicleByTrip(vp)
-	}
-	scheduled, err := scheduledInWindow(ctx, a.store, stopID, route, now, windowEnd)
-	if err != nil {
-		return nil, err
-	}
-	rows := mergeArrivals(scheduled, rtLookup, vehByTrip, stopID, now, windowEnd, route, a, ctx)
-	if limit > 0 && len(rows) > limit {
-		rows = rows[:limit]
-	}
-
-	var alerts []AlertView
-	if msg, err := a.rt.ServiceAlerts(ctx); err == nil {
-		alerts = filterRelevantAlerts(collectAlerts(msg, a.store, now, ctx), stopID, rowsRouteShorts(rows), route)
-	}
-	return map[string]any{
-		"stop":     map[string]string{"stop_id": stopID, "stop_name": stopName},
-		"arrivals": rows,
-		"alerts":   alerts,
-		"now":      now.Format(time.RFC3339),
-	}, nil
-}
-
-// resolveStopForMCP is the MCP-side resolver — it never prints a disambiguation table,
-// instead returning an error listing candidates so the agent can ask back.
-func resolveStopForMCP(ctx context.Context, a *app, query string) (string, error) {
-	q := strings.TrimSpace(query)
-	if q == "" {
-		return "", fmt.Errorf("empty stop query")
-	}
-	if isNumeric(q) {
-		s, err := a.store.StopByID(ctx, q)
-		if err != nil {
-			return "", err
-		}
-		if s == nil {
-			return "", fmt.Errorf("no stop with id %q", q)
-		}
-		return s.StopID, nil
-	}
-	stops, err := a.store.SearchStopsByName(ctx, q, 20)
-	if err != nil {
-		return "", err
-	}
-	switch len(stops) {
-	case 0:
-		return "", fmt.Errorf("no stop matches %q", q)
-	case 1:
-		return stops[0].StopID, nil
-	}
-	candidates := make([]string, 0, len(stops))
-	for _, s := range stops {
-		candidates = append(candidates, fmt.Sprintf("%s (%s)", s.StopName, s.StopID))
-	}
-	return "", fmt.Errorf("multiple stops match %q: %s — call with a specific stop_id", q, strings.Join(candidates, "; "))
-}
-
 func isNumeric(s string) bool {
 	if s == "" {
 		return false
@@ -496,7 +432,27 @@ func runStopsNearbyForMCP(ctx context.Context, lat, lon float64, radius int, rou
 		return nil, err
 	}
 	defer a.close()
-	return a.store.StopsNearby(ctx, lat, lon, radius, route, limit)
+	near, err := a.store.StopsNearby(ctx, lat, lon, radius, route, limit)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, len(near))
+	for i, n := range near {
+		ids[i] = n.StopID
+	}
+	lines, err := a.store.LinesByStop(ctx, ids, route)
+	if err != nil {
+		return nil, err
+	}
+	type nearbyView struct {
+		store.StopNearby
+		Lines []store.LineDirection `json:"lines_served,omitempty"`
+	}
+	out := make([]nearbyView, len(near))
+	for i, n := range near {
+		out[i] = nearbyView{StopNearby: n, Lines: lines[n.StopID]}
+	}
+	return out, nil
 }
 
 func runStopsSearchForMCP(ctx context.Context, query string, limit int) (any, error) {
@@ -505,7 +461,27 @@ func runStopsSearchForMCP(ctx context.Context, query string, limit int) (any, er
 		return nil, err
 	}
 	defer a.close()
-	return a.store.SearchStopsByName(ctx, query, limit)
+	stops, err := a.store.SearchStopsByName(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, len(stops))
+	for i, s := range stops {
+		ids[i] = s.StopID
+	}
+	lines, err := a.store.LinesByStop(ctx, ids, "")
+	if err != nil {
+		return nil, err
+	}
+	type stopView struct {
+		store.Stop
+		Lines []store.LineDirection `json:"lines_served,omitempty"`
+	}
+	out := make([]stopView, len(stops))
+	for i, s := range stops {
+		out[i] = stopView{Stop: s, Lines: lines[s.StopID]}
+	}
+	return out, nil
 }
 
 func runRoutesForMCP(ctx context.Context) (any, error) {
