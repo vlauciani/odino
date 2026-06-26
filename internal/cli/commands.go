@@ -470,28 +470,6 @@ func collectAlerts(msg *gtfsrt.FeedMessage, st *store.Store, now time.Time, ctx 
 	return out
 }
 
-// alertsByRoute groups alerts by route_short_name for quick lookup.
-func alertsByRoute(alerts []AlertView) map[string][]AlertView {
-	out := map[string][]AlertView{}
-	for _, a := range alerts {
-		for _, r := range a.AffectedRoutes {
-			out[r] = append(out[r], a)
-		}
-	}
-	return out
-}
-
-// alertsByStop groups alerts by stop_id for quick lookup.
-func alertsByStop(alerts []AlertView) map[string][]AlertView {
-	out := map[string][]AlertView{}
-	for _, a := range alerts {
-		for _, s := range a.AffectedStops {
-			out[s] = append(out[s], a)
-		}
-	}
-	return out
-}
-
 func pickTranslation(ts *gtfsrt.TranslatedString) string {
 	if ts == nil {
 		return ""
