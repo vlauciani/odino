@@ -37,3 +37,13 @@ jobs:
           tags: vlauciani/odino:develop
           build-args: |
             VERSION=develop-${{ steps.vars.outputs.sha }}
+
+      # Sync the Docker Hub repository overview from the project README. The
+      # access token must carry the read/write/delete scope for this API.
+      - name: Sync README to Docker Hub overview
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+          repository: vlauciani/odino
+          readme-filepath: ./README.md

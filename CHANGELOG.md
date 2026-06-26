@@ -1,7 +1,7 @@
 # Release Notes
 
 ### Release 1.1.0-dev (2026-06-26)
-  - . . .
+  - Sync the Docker Hub repository overview from the project README on every develop push
 
 ### Release 1.0.2 (2026-06-26)
   - Fix Docker Hub login in the release and docker-dev workflows: reference the actual `DOCKER_HUB_USERNAME` and `DOCKER_HUB_ACCESS_TOKEN` repo secrets
