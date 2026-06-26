@@ -25,7 +25,7 @@ jobs:
 
       # Multi-arch (arm64) image builds need QEMU + Buildx.
       - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # Docker Hub credentials come from repo secrets (Settings → Secrets and
       # variables → Actions): DOCKER_HUB_USERNAME and a DOCKER_HUB_ACCESS_TOKEN
