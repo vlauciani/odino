@@ -1,6 +1,6 @@
 # GoReleaser v2 — one `git tag` produces: per-platform binaries on the GitHub
-# Release, a multi-arch image on GHCR, and checksums. `go install` keeps working
-# independently. Docs: https://goreleaser.com
+# Release, a multi-arch image on Docker Hub, and checksums. `go install` keeps
+# working independently. Docs: https://goreleaser.com
 version: 2
 
 project_name: odino
@@ -47,7 +47,7 @@ changelog:
       - "^chore:"
       - "^ci:"
 
-# Multi-arch image on GHCR: one per-arch build, then a manifest that ties them together.
+# Multi-arch image on Docker Hub: one per-arch build, then a manifest that ties them together.
 dockers:
   - id: amd64
     goos: linux
@@ -55,8 +55,8 @@ dockers:
     dockerfile: Dockerfile.goreleaser
     use: buildx
     image_templates:
-      - "ghcr.io/vlauciani/odino:{{ .Version }}-amd64"
-      - "ghcr.io/vlauciani/odino:latest-amd64"
+      - "vlauciani/odino:{{ .Version }}-amd64"
+      - "vlauciani/odino:latest-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.source=https://github.com/vlauciani/odino"
@@ -67,22 +67,22 @@ dockers:
     dockerfile: Dockerfile.goreleaser
     use: buildx
     image_templates:
-      - "ghcr.io/vlauciani/odino:{{ .Version }}-arm64"
-      - "ghcr.io/vlauciani/odino:latest-arm64"
+      - "vlauciani/odino:{{ .Version }}-arm64"
+      - "vlauciani/odino:latest-arm64"
     build_flag_templates:
       - "--platform=linux/arm64"
       - "--label=org.opencontainers.image.source=https://github.com/vlauciani/odino"
       - "--label=org.opencontainers.image.version={{ .Version }}"
 
 docker_manifests:
-  - name_template: "ghcr.io/vlauciani/odino:{{ .Version }}"
+  - name_template: "vlauciani/odino:{{ .Version }}"
     image_templates:
-      - "ghcr.io/vlauciani/odino:{{ .Version }}-amd64"
-      - "ghcr.io/vlauciani/odino:{{ .Version }}-arm64"
-  - name_template: "ghcr.io/vlauciani/odino:latest"
+      - "vlauciani/odino:{{ .Version }}-amd64"
+      - "vlauciani/odino:{{ .Version }}-arm64"
+  - name_template: "vlauciani/odino:latest"
     image_templates:
-      - "ghcr.io/vlauciani/odino:latest-amd64"
-      - "ghcr.io/vlauciani/odino:latest-arm64"
+      - "vlauciani/odino:latest-amd64"
+      - "vlauciani/odino:latest-arm64"
 
 release:
   github:

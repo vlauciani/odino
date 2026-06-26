@@ -54,10 +54,10 @@ This drops the `odino` binary in `$(go env GOPATH)/bin` (usually `~/go/bin`).
 
 ### Docker
 
-Pull the prebuilt multi-arch image from GHCR:
+Pull the prebuilt multi-arch image from Docker Hub:
 
 ```sh
-docker pull ghcr.io/vlauciani/odino:latest
+docker pull vlauciani/odino:latest
 ```
 
 Or build it yourself from source:
