@@ -358,4 +358,3 @@ func runVehicleFollowForMCP(ctx context.Context, vehicleID, toStopID string, lim
 	defer a.close()
 	return buildVehicleFollowView(ctx, a, vehicleID, toStopID, limit)
 }
-

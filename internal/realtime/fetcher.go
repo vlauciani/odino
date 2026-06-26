@@ -118,12 +118,12 @@ type TripUpdateLookup struct {
 
 // StopTimeEvent is a thin view of a GTFS-RT TripUpdate.StopTimeUpdate for a stop.
 type StopTimeEvent struct {
-	HasTime    bool
-	Time       time.Time
-	Delay      int32 // seconds
-	HasDelay   bool
-	Cancelled  bool
-	StopSeq    uint32
+	HasTime   bool
+	Time      time.Time
+	Delay     int32 // seconds
+	HasDelay  bool
+	Cancelled bool
+	StopSeq   uint32
 }
 
 // BuildTripUpdateLookup indexes a trip_updates FeedMessage.

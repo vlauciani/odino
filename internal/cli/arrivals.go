@@ -17,15 +17,15 @@ import (
 
 // arrivalRow is one rendered row in the arrivals view.
 type arrivalRow struct {
-	Time      time.Time `json:"time"`
-	Line      string    `json:"line"`
-	Vehicle   string    `json:"vehicle,omitempty"` // empty for SCHED rows; populated for LIVE when known
-	Headsign  string    `json:"headsign"`
-	Min       int       `json:"minutes"`
-	Source    string    `json:"source"` // LIVE | SCHED
-	TripID    string    `json:"trip_id"`
-	RouteID   string    `json:"route_id"`
-	StopID    string    `json:"stop_id,omitempty"` // set only on aggregated multi-pole arrivals
+	Time     time.Time `json:"time"`
+	Line     string    `json:"line"`
+	Vehicle  string    `json:"vehicle,omitempty"` // empty for SCHED rows; populated for LIVE when known
+	Headsign string    `json:"headsign"`
+	Min      int       `json:"minutes"`
+	Source   string    `json:"source"` // LIVE | SCHED
+	TripID   string    `json:"trip_id"`
+	RouteID  string    `json:"route_id"`
+	StopID   string    `json:"stop_id,omitempty"` // set only on aggregated multi-pole arrivals
 }
 
 func newArrivalsCmd(flags *rootFlags) *cobra.Command {
