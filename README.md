@@ -21,6 +21,21 @@ only when its upstream MD5 changes, so daily refreshes are nearly free.
 
 ## Installation
 
+### Prebuilt binaries (recommended)
+
+Download the archive for your OS/arch from the
+[latest release](https://github.com/vlauciani/odino/releases/latest), extract it,
+and put `odino` on your `PATH`. It is a single static binary with no runtime
+dependencies (the timezone database is embedded), so it runs as-is on macOS,
+Linux, and Windows.
+
+```sh
+# macOS / Linux — pick the asset matching your platform
+tar -xzf odino_*_<os>_<arch>.tar.gz
+sudo mv odino /usr/local/bin/
+odino --help
+```
+
 ### From source
 
 ```sh
@@ -38,6 +53,14 @@ go install github.com/vlauciani/odino/cmd/odino@latest
 This drops the `odino` binary in `$(go env GOPATH)/bin` (usually `~/go/bin`).
 
 ### Docker
+
+Pull the prebuilt multi-arch image from GHCR:
+
+```sh
+docker pull ghcr.io/vlauciani/odino:latest
+```
+
+Or build it yourself from source:
 
 ```sh
 docker build -t odino:latest .
