@@ -1,0 +1,18 @@
+# golangci-lint v2 configuration. Default linter set, minus the idiomatic
+# error-return cases we intentionally ignore: writes to stdout/stderr and the
+# deferred Close() of rows/response bodies. See https://golangci-lint.run
+version: "2"
+
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (*database/sql.Rows).Close
+        - (*database/sql.Stmt).Close
+        - (*os.File).Close
+        - (*archive/zip.ReadCloser).Close
+        - (io.Closer).Close
+        - (io.ReadCloser).Close
