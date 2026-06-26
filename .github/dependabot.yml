@@ -2,9 +2,11 @@
 # when updates or security fixes are available. https://docs.github.com/code-security/dependabot
 version: 2
 updates:
-  # Go modules (go.mod / go.sum).
+  # Go modules (go.mod / go.sum). Targets the develop integration branch so
+  # bumps follow the git-flow path (develop -> next release -> main).
   - package-ecosystem: gomod
     directory: "/"
+    target-branch: develop
     schedule:
       interval: weekly
     commit-message:
@@ -14,6 +16,7 @@ updates:
   # Versions of the actions used in the GitHub Actions workflows.
   - package-ecosystem: github-actions
     directory: "/"
+    target-branch: develop
     schedule:
       interval: weekly
     commit-message:
