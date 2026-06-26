@@ -38,6 +38,6 @@ jobs:
 
       # Runs golangci-lint with its default linter set (no repo config needed).
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
