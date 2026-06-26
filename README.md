@@ -1,3 +1,13 @@
+|**Service**|**Main**|**Develop**|
+|---|---|---|
+|CI|[![CI](https://github.com/vlauciani/odino/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vlauciani/odino/actions/workflows/ci.yml?query=branch%3Amain)|[![CI](https://github.com/vlauciani/odino/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/vlauciani/odino/actions/workflows/ci.yml?query=branch%3Adevelop)|
+
+[![Latest release](https://img.shields.io/github/v/release/vlauciani/odino)](https://github.com/vlauciani/odino/releases)
+[![Docker Pulls](https://img.shields.io/docker/pulls/vlauciani/odino)](https://hub.docker.com/r/vlauciani/odino)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vlauciani/odino)](https://goreportcard.com/report/github.com/vlauciani/odino)
+[![License: MIT](https://img.shields.io/github/license/vlauciani/odino)](https://github.com/vlauciani/odino/blob/main/LICENSE)
+[![GitHub issues](https://img.shields.io/github/issues/vlauciani/odino)](https://github.com/vlauciani/odino/issues)
+
 # odino
 
 CLI for Rome public-transport realtime arrivals, backed by the
@@ -60,10 +70,13 @@ Pull the prebuilt multi-arch image from Docker Hub:
 docker pull vlauciani/odino:latest
 ```
 
+`:latest` tracks the most recent release; `:develop` tracks the latest
+`develop` build if you want to test unreleased changes.
+
 Or build it yourself from source:
 
 ```sh
-docker build -t odino:latest .
+docker build -t vlauciani/odino:latest .
 ```
 
 Multi-stage Alpine image, ~15 MB. Inside the container the cache path is
@@ -74,7 +87,7 @@ the SQLite database across runs:
 mkdir -p ~/.cache/odino
 docker run --rm --user $(id -u):$(id -g) \
   -v ~/.cache/odino:/var/cache/odino \
-  odino:latest update
+  vlauciani/odino:latest update
 ```
 
 The `--user $(id -u):$(id -g)` flag matches the container process to your
@@ -174,34 +187,34 @@ inside the container, so the GTFS cache persists across runs.
 # Populate (or refresh) the cache from inside the container.
 docker run --rm --user $(id -u):$(id -g) \
   -v ~/.cache/odino:/var/cache/odino \
-  odino:latest update
+  vlauciani/odino:latest update
 
 # Next arrivals at C.so Vittorio Emanuele / Argentina (stop 77211), line 64.
 docker run --rm --user $(id -u):$(id -g) \
   -v ~/.cache/odino:/var/cache/odino \
-  odino:latest arrivals 77211 --route 64
+  vlauciani/odino:latest arrivals 77211 --route 64
 
 # Stops within 250 m of a coordinate.
 docker run --rm --user $(id -u):$(id -g) \
   -v ~/.cache/odino:/var/cache/odino \
-  odino:latest stops nearby --lat 41.853563 --lon 12.499133 --radius 250
+  vlauciani/odino:latest stops nearby --lat 41.853563 --lon 12.499133 --radius 250
 
 # Live vehicle positions for line 64.
 docker run --rm --user $(id -u):$(id -g) \
   -v ~/.cache/odino:/var/cache/odino \
-  odino:latest vehicles --route 64 --json
+  vlauciani/odino:latest vehicles --route 64 --json
 
 # Follow bus 888 until it reaches stop 74618 (ETA + stops to go).
 docker run --rm --user $(id -u):$(id -g) \
   -v ~/.cache/odino:/var/cache/odino \
-  odino:latest vehicle 888 --to 74618
+  vlauciani/odino:latest vehicle 888 --to 74618
 ```
 
 Handy shell alias:
 
 ```sh
 alias odino='docker run --rm --user $(id -u):$(id -g) \
-  -v ~/.cache/odino:/var/cache/odino odino:latest'
+  -v ~/.cache/odino:/var/cache/odino vlauciani/odino:latest'
 # Then: odino arrivals 77211 --route 64
 ```
 
@@ -285,7 +298,7 @@ native CLI. The agent config invokes Docker with stdio attached
         "run", "--rm", "-i",
         "--user", "1000:1000",
         "-v", "/Users/<you>/.cache/odino:/var/cache/odino",
-        "odino:latest", "mcp"
+        "vlauciani/odino:latest", "mcp"
       ]
     }
   }
