@@ -264,7 +264,7 @@ own log lines (see [Logs and debugging](#logs-and-debugging)):
 {
   "mcpServers": {
     "odino": {
-      "command": "/Users/<you>/gitwork/gitlab/_valentino.lauciani/odino/odino",
+      "command": "/Users/<you>/go/bin/odino",
       "args": ["mcp"],
       "env": { "ODINO_LOG_FILE": "/Users/<you>/.cache/odino/mcp.log" }
     }
@@ -340,7 +340,7 @@ with `/` replaced by `-` (folders starting with `_` become `--`). For
 this repo, that's:
 
 ```sh
-ls ~/Library/Caches/claude-cli-nodejs/-Users-<you>-gitwork-gitlab--valentino-lauciani-odino/mcp-logs-odino/
+ls ~/Library/Caches/claude-cli-nodejs/-Users-<you>-gitwork-github--vlauciani-odino/mcp-logs-odino/
 ```
 
 **Claude Code does not capture the MCP server's `stderr`**, so the
@@ -351,7 +351,7 @@ set in the MCP config:
 {
   "mcpServers": {
     "odino": {
-      "command": "/Users/<you>/gitwork/gitlab/_valentino.lauciani/odino/odino",
+      "command": "/Users/<you>/go/bin/odino",
       "args": ["mcp"],
       "env": { "ODINO_LOG_FILE": "/Users/<you>/.cache/odino/mcp.log" }
     }
